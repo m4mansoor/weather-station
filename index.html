@@ -407,13 +407,24 @@
                 const response = await fetch(currentUrl);
                 const data = await response.json();
                 
-                // Create a more reliable location name
-                const locationName = `Lat: ${lat.toFixed(2)}°, Lon: ${lon.toFixed(2)}°`;
+                // Create a simple location name based on coordinates
+                // We'll use a fixed location for demonstration purposes
+                // In a real app, you could use a geolocation service
+                let locationName = "Your Location";
+                
+                // For Pakistan locations, we'll show a meaningful name
+                if (lat >= 24 && lat <= 37 && lon >= 60 && lon <= 75) {
+                    // Approximate bounds for Pakistan
+                    locationName = "Pakistan";
+                } else {
+                    // Default to coordinates for other locations
+                    locationName = `Lat: ${lat.toFixed(2)}°, Lon: ${lon.toFixed(2)}°`;
+                }
                 
                 // Process the data for our display
                 const processedData = {
                     name: locationName,
-                    sys: { country: "Location" },
+                    sys: { country: "PK" },
                     main: {
                         temp: data.current_weather ? Math.round(data.current_weather.temperature) : 25,
                         feels_like: data.current_weather ? Math.round(data.current_weather.temperature + (Math.random() * 2 - 1)) : 26,
@@ -683,24 +694,4 @@
                                     <div class="forecast-date">${day.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
                                     <div class="forecast-icon">
                                         <i class="${weatherIcons[day.icon]}"></i>
-                                    </div>
-                                    <div class="forecast-temp">${day.maxTemp}°/${day.minTemp}°</div>
-                                    <div class="forecast-details">
-                                        <div>Rain: ${day.rainProbability}%</div>
-                                        <div>Precip: ${day.precipitation}mm</div>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Initialize when page loads
-        window.onload = function() {
-            getLocation();
-        };
-    </script>
-</body>
-</html>
+                
