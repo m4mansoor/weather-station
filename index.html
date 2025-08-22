@@ -306,7 +306,7 @@
     <div class="container">
         <header>
             <h1><i class="fas fa-cloud-sun"></i> Modern Weather Station</h1>
-            <p class="subtitle">Real-time weather updates with 30-day forecasts</p>
+            <p class="subtitle">Real-time weather updates with 7-day forecasts</p>
         </header>
 
         <div id="weather-content">
@@ -318,6 +318,7 @@
 
         <footer>
             <p>Data provided by Open-Meteo API | Real-time Weather Information</p>
+            <p>Developed by: Inaamul Haq Mansoor</p>
             <div class="footer-links">
                 <a href="#"><i class="fab fa-github"></i> GitHub</a>
                 <a href="#"><i class="fas fa-code"></i> Code</a>
@@ -401,15 +402,18 @@
         async function getWeatherData(lat, lon) {
             try {
                 // Using Open-Meteo API which is completely free
-                const currentUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,precipitation_probability&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum&timezone=auto&forecast_days=30`;
+                const currentUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,precipitation_probability&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum&timezone=auto&forecast_days=7`;
                 
                 const response = await fetch(currentUrl);
                 const data = await response.json();
                 
+                // Get location name using reverse geocoding
+                const locationName = await getLocationName(lat, lon);
+                
                 // Process the data for our display
                 const processedData = {
-                    name: "Your Location",
-                    sys: { country: "PK" },
+                    name: locationName,
+                    sys: { country: data.timezone.split('/')[0] || "PK" },
                     main: {
                         temp: Math.round(data.current_weather.temperature),
                         feels_like: Math.round(data.current_weather.temperature + (Math.random() * 2 - 1)),
@@ -434,6 +438,26 @@
                 // Fallback to mock data if API fails
                 const mockData = generateMockWeather(lat, lon);
                 displayWeather(mockData);
+            }
+        }
+
+        // Get location name using reverse geocoding
+        async function getLocationName(lat, lon) {
+            try {
+                // Using Nominatim API for reverse geocoding
+                const reverseUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`;
+                const response = await fetch(reverseUrl);
+                const data = await response.json();
+                
+                // Extract city and country
+                const city = data.address.city || data.address.town || data.address.village || "Unknown Location";
+                const country = data.address.country || "Country";
+                
+                return `${city}, ${country}`;
+            } catch (error) {
+                console.error("Error getting location name: ", error);
+                // Fallback to coordinates
+                return `Lat: ${lat.toFixed(2)}, Lon: ${lon.toFixed(2)}`;
             }
         }
 
@@ -570,11 +594,11 @@
             const description = data.weather[0].description.charAt(0).toUpperCase() + data.weather[0].description.slice(1);
             const iconCode = data.weather[0].icon;
             
-            // Generate 30-day forecast with more details
+            // Generate 7-day forecast with more details
             const forecastDays = [];
             if (data.daily_forecast && data.daily_forecast.time) {
                 // Use actual forecast data if available
-                for (let i = 0; i < Math.min(30, data.daily_forecast.time.length); i++) {
+                for (let i = 0; i < Math.min(7, data.daily_forecast.time.length); i++) {
                     const dayDate = new Date(data.daily_forecast.time[i]);
                     const maxTemp = data.daily_forecast.temperature_2m_max[i] || 
                                    data.daily_forecast.temperature_2m_min[i] || 
@@ -607,7 +631,7 @@
                 }
             } else {
                 // Fallback to mock data
-                for (let i = 0; i < 30; i++) {
+                for (let i = 0; i < 7; i++) {
                     const dayDate = new Date(Date.now() + i * 24 * 60 * 60 * 1000);
                     const maxTemp = temp + Math.floor(Math.random() * 10) - 5;
                     const minTemp = maxTemp - Math.floor(Math.random() * 10);
@@ -631,7 +655,7 @@
             weatherContent.innerHTML = `
                 <div class="weather-container">
                     <div class="current-weather">
-                        <h2 class="location">Karachi, Pakistan</h2>
+                        <h2 class="location">${data.name}</h2>
                         <p class="date-time">${now.toLocaleDateString('en-US', dateOptions)} at ${now.toLocaleTimeString('en-US', timeOptions)}</p>
                         
                         <div class="weather-icon">
@@ -671,7 +695,7 @@
                     
                     <div class="forecast">
                         <div class="forecast-header">
-                            <h3 class="forecast-title">30-Day Forecast</h3>
+                            <h3 class="forecast-title">7-Day Forecast</h3>
                         </div>
                         <div class="forecast-container">
                             ${forecastDays.map(day => `
