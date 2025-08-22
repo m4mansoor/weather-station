@@ -177,7 +177,7 @@
 
         .forecast-container {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 15px;
         }
 
@@ -187,6 +187,10 @@
             padding: 15px;
             text-align: center;
             transition: var(--transition);
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         .forecast-day:hover {
@@ -198,6 +202,7 @@
             font-weight: 600;
             margin-bottom: 10px;
             color: var(--primary);
+            font-size: 1rem;
         }
 
         .forecast-icon {
@@ -208,6 +213,18 @@
 
         .forecast-temp {
             font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .forecast-details {
+            font-size: 0.85rem;
+            margin-top: 5px;
+            color: var(--dark);
+        }
+
+        .rain-probability {
+            font-size: 0.9rem;
+            color: var(--accent);
             font-weight: 600;
         }
 
@@ -380,11 +397,11 @@
             `;
         }
 
-        // Fetch weather data from Open-Meteo API (completely free)
+        // Fetch weather data from Open-Meteo API
         async function getWeatherData(lat, lon) {
             try {
                 // Using Open-Meteo API which is completely free
-                const currentUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,precipitation_probability&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`;
+                const currentUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,precipitation_probability&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum&timezone=auto&forecast_days=30`;
                 
                 const response = await fetch(currentUrl);
                 const data = await response.json();
@@ -392,15 +409,16 @@
                 // Process the data for our display
                 const processedData = {
                     name: "Your Location",
-                    sys: { country: "US" },
+                    sys: { country: "PK" },
                     main: {
                         temp: Math.round(data.current_weather.temperature),
-                        feels_like: Math.round(data.current_weather.temperature + (Math.random() * 2 - 1)), // Simulated
-                        humidity: Math.floor(Math.random() * 30) + 40, // Simulated
-                        pressure: 1013 // Standard atmospheric pressure
+                        feels_like: Math.round(data.current_weather.temperature + (Math.random() * 2 - 1)),
+                        humidity: data.current_weather.relative_humidity,
+                        pressure: data.current_weather.pressure_msl
                     },
                     wind: {
-                        speed: data.current_weather.windspeed
+                        speed: data.current_weather.windspeed,
+                        direction: data.current_weather.winddirection
                     },
                     weather: [{
                         main: "Clear",
@@ -412,7 +430,7 @@
                 
                 displayWeather(processedData);
             } catch (error) {
-                console.error("Error fetching weather data:", error);
+                console.error("Error fetching weather data: ", error);
                 // Fallback to mock data if API fails
                 const mockData = generateMockWeather(lat, lon);
                 displayWeather(mockData);
@@ -516,7 +534,7 @@
             
             return {
                 name: "Your Location",
-                sys: { country: "US" },
+                sys: { country: "PK" },
                 main: {
                     temp: Math.round(baseTemp),
                     feels_like: Math.round(baseTemp + (Math.random() * 4 - 2)),
@@ -524,7 +542,8 @@
                     pressure: pressure
                 },
                 wind: {
-                    speed: windSpeed
+                    speed: windSpeed,
+                    direction: Math.floor(Math.random() * 360)
                 },
                 weather: [{
                     main: description.split(' ')[0].charAt(0).toUpperCase() + description.split(' ')[0].slice(1),
@@ -546,44 +565,64 @@
             const feelsLike = data.main.feels_like;
             const humidity = data.main.humidity;
             const windSpeed = data.wind.speed;
+            const windDirection = data.wind.direction;
             const pressure = data.main.pressure;
             const description = data.weather[0].description.charAt(0).toUpperCase() + data.weather[0].description.slice(1);
             const iconCode = data.weather[0].icon;
-            const locationName = `${data.name}, ${data.sys.country}`;
             
-            // Generate 7-day forecast
+            // Generate 30-day forecast with more details
             const forecastDays = [];
             if (data.daily_forecast && data.daily_forecast.time) {
                 // Use actual forecast data if available
-                for (let i = 1; i <= 7; i++) {
-                    if (data.daily_forecast.time[i]) {
-                        const dayTemp = data.daily_forecast.temperature_2m_max[i] || 
-                                       data.daily_forecast.temperature_2m_min[i] || 
-                                       temp + Math.floor(Math.random() * 10) - 5;
-                        
-                        // Simple icon selection
-                        const iconVariants = ['01d', '02d', '03d', '09d', '10d', '11d', '13d'];
-                        const dayIcon = iconVariants[Math.floor(Math.random() * iconVariants.length)];
-                        
-                        forecastDays.push({
-                            date: new Date(data.daily_forecast.time[i]),
-                            temp: Math.round(dayTemp),
-                            icon: dayIcon,
-                            description: i % 3 === 0 ? 'cloudy' : 'partly cloudy'
-                        });
-                    }
+                for (let i = 0; i < Math.min(30, data.daily_forecast.time.length); i++) {
+                    const dayDate = new Date(data.daily_forecast.time[i]);
+                    const maxTemp = data.daily_forecast.temperature_2m_max[i] || 
+                                   data.daily_forecast.temperature_2m_min[i] || 
+                                   temp + Math.floor(Math.random() * 10) - 5;
+                    const minTemp = data.daily_forecast.temperature_2m_min[i] || 
+                                   data.daily_forecast.temperature_2m_max[i] || 
+                                   maxTemp - Math.floor(Math.random() * 10);
+                    
+                    // Rain probability
+                    const rainProbability = data.daily_forecast.precipitation_probability_max[i] || 
+                                          Math.floor(Math.random() * 100);
+                    
+                    // Precipitation amount
+                    const precipitation = data.daily_forecast.precipitation_sum[i] || 
+                                         Math.random() * 10;
+                    
+                    // Simple icon selection
+                    const iconVariants = ['01d', '02d', '03d', '09d', '10d', '11d', '13d'];
+                    const dayIcon = iconVariants[Math.floor(Math.random() * iconVariants.length)];
+                    
+                    forecastDays.push({
+                        date: dayDate,
+                        maxTemp: Math.round(maxTemp),
+                        minTemp: Math.round(minTemp),
+                        icon: dayIcon,
+                        description: i % 3 === 0 ? 'cloudy' : 'partly cloudy',
+                        rainProbability: rainProbability,
+                        precipitation: precipitation.toFixed(1)
+                    });
                 }
             } else {
                 // Fallback to mock data
-                for (let i = 1; i <= 7; i++) {
-                    const dayTemp = temp + Math.floor(Math.random() * 10) - 5;
+                for (let i = 0; i < 30; i++) {
+                    const dayDate = new Date(Date.now() + i * 24 * 60 * 60 * 1000);
+                    const maxTemp = temp + Math.floor(Math.random() * 10) - 5;
+                    const minTemp = maxTemp - Math.floor(Math.random() * 10);
                     const iconVariants = ['01d', '02d', '03d', '09d', '10d', '11d', '13d'];
                     const dayIcon = iconVariants[Math.floor(Math.random() * iconVariants.length)];
+                    const rainProbability = Math.floor(Math.random() * 100);
+                    const precipitation = (Math.random() * 10).toFixed(1);
                     forecastDays.push({
-                        date: new Date(Date.now() + i * 24 * 60 * 60 * 1000),
-                        temp: Math.round(dayTemp),
+                        date: dayDate,
+                        maxTemp: Math.round(maxTemp),
+                        minTemp: Math.round(minTemp),
                         icon: dayIcon,
-                        description: i % 3 === 0 ? 'cloudy' : 'partly cloudy'
+                        description: i % 3 === 0 ? 'cloudy' : 'partly cloudy',
+                        rainProbability: rainProbability,
+                        precipitation: precipitation
                     });
                 }
             }
@@ -592,7 +631,7 @@
             weatherContent.innerHTML = `
                 <div class="weather-container">
                     <div class="current-weather">
-                        <h2 class="location">${locationName}</h2>
+                        <h2 class="location">Karachi, Pakistan</h2>
                         <p class="date-time">${now.toLocaleDateString('en-US', dateOptions)} at ${now.toLocaleTimeString('en-US', timeOptions)}</p>
                         
                         <div class="weather-icon">
@@ -615,7 +654,7 @@
                             </div>
                             <div class="detail-card">
                                 <i class="fas fa-wind"></i>
-                                <div class="detail-value">${windSpeed.toFixed(1)} m/s</div>
+                                <div class="detail-value">${windSpeed} m/s</div>
                                 <div class="detail-label">Wind Speed</div>
                             </div>
                             <div class="detail-card">
@@ -632,7 +671,7 @@
                     
                     <div class="forecast">
                         <div class="forecast-header">
-                            <h3 class="forecast-title">7-Day Forecast</h3>
+                            <h3 class="forecast-title">30-Day Forecast</h3>
                         </div>
                         <div class="forecast-container">
                             ${forecastDays.map(day => `
@@ -641,7 +680,11 @@
                                     <div class="forecast-icon">
                                         <i class="${weatherIcons[day.icon]}"></i>
                                     </div>
-                                    <div class="forecast-temp">${day.temp}°C</div>
+                                    <div class="forecast-temp">${day.maxTemp}°/${day.minTemp}°</div>
+                                    <div class="forecast-details">
+                                        <div>Rain: ${day.rainProbability}%</div>
+                                        <div>Precip: ${day.precipitation}mm</div>
+                                    </div>
                                 </div>
                             `).join('')}
                         </div>
